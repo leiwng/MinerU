@@ -1,4 +1,7 @@
 test/
+deployment/logs
+deployment/models
+deployment/output
 
 *.tar
 *.tar.gz

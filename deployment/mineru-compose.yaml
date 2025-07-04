@@ -1,32 +1,46 @@
-# Documentation:
-# https://docs.sglang.ai/backend/server_arguments.html#common-launch-commands
+version: '3.8'
+
 services:
   mineru-sglang:
     image: mineru-sglang:latest
     container_name: mineru-sglang
-    restart: always
+    restart: unless-stopped
     ports:
-      - 30000:30000
+      - "30000:30000"
     environment:
       MINERU_MODEL_SOURCE: local
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
     entrypoint: mineru-sglang-server
     command:
-      --host 0.0.0.0
-      --port 30000
-      # --enable-torch-compile  # You can also enable torch.compile to accelerate inference speed by approximately 15%
-      # --dp 2  # If you have more than two GPUs with 24GB VRAM or above, you can use sglang's multi-GPU parallel mode to increase throughput  
-      # --tp 2  # If you have two GPUs with 12GB or 16GB VRAM, you can use the Tensor Parallel (TP) mode
-      # --mem-fraction-static 0.7  # If you have two GPUs with 11GB VRAM, in addition to Tensor Parallel mode, you need to reduce the KV cache size
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "30000"
+      - --mem-fraction-static
+      - "0.6"
+      - --cuda-graph-max-bs
+      - "16"
+      - --log-level
+      - "info"
+    volumes:
+      - ./logs:/app/logs
+      - ./output:/tmp/output
+      - ./models:/root/.cache/modelscope
     ulimits:
       memlock: -1
       stack: 67108864
+    shm_size: 32g  # 添加共享内存设置
     ipc: host
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:30000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["0"]
+              count: all  # 使用所有GPU，或改为 device_ids: ["0"] 只用第一个
               capabilities: [gpu]
